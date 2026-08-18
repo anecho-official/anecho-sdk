@@ -1,0 +1,13 @@
+{
+  "name": "@anecho-official/sdk",
+  "version": "1.0.0",
+  "description": "Anecho voice-focus runtime: load a .anecho model, stream audio through it on CPU. 16 kHz, 15 ms algorithmic delay.",
+  "main": "src/index.js",
+  "bin": { "anecho": "src/cli.js" },
+  "files": ["src", "LICENSE", "README.md"],
+  "engines": { "node": ">=18" },
+  "repository": { "type": "git", "url": "https://github.com/anecho-official/anecho-sdk" },
+  "homepage": "https://anecho.ai",
+  "license": "SEE LICENSE IN LICENSE",
+  "publishConfig": { "access": "public" }
+}

@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "anecho"
+version = "1.0.0"
+description = "Anecho voice-focus runtime: load a .anecho model, stream audio through it on CPU. 16 kHz, 15 ms algorithmic delay."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+dependencies = ["numpy>=1.24", "torch>=2.1"]
+
+[project.urls]
+Homepage = "https://anecho.ai"
+Documentation = "https://anecho.ai/docs/sdk"
+
+[tool.setuptools]
+packages = ["anecho"]

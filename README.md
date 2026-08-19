@@ -167,6 +167,24 @@ filter toggleable mid-conversation) runs at
 [anecho.ai/#agent](https://anecho.ai/#agent) — talk to it, flip the filter, and
 hear what the model takes away.
 
+The same integration as a runnable script:
+[`examples/agent_gemini.py`](examples/agent_gemini.py) — your microphone,
+Anecho on the uplink, Gemini Live (Vertex AI) answering out of your speakers.
+
+### Run it
+
+```bash
+pip install google-genai sounddevice
+
+export ANECHO_LICENSE=...                        # token from app.anecho.ai
+export GOOGLE_CLOUD_PROJECT=your-project         # Vertex AI, aiplatform API enabled
+export GOOGLE_CLOUD_LOCATION=us-central1         # optional; this is the default
+export GOOGLE_APPLICATION_CREDENTIALS=sa.json    # service account, roles/aiplatform.user
+
+python examples/agent_gemini.py                  # first arg: your .anecho model file
+python examples/agent_gemini.py --no-filter      # A/B: the agent hears the raw mic
+```
+
 ## Documentation
 
 - Quickstart: https://anecho.ai/docs

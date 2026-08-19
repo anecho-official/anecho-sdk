@@ -32,7 +32,7 @@ from [app.anecho.ai](https://app.anecho.ai).
 Hear it before you write any code:
 
 ```bash
-npx anecho mic your-model.anecho --seconds 10   # record, process, play both back
+npx anecho mic anecho.ai_focus_model_16khz_v4_1.anecho --seconds 10   # record, process, play both back
 ```
 
 Node:
@@ -41,7 +41,7 @@ Node:
 const { Model, Processor, UsageReporter } = require("@anecho-official/sdk");
 
 const reporter = new UsageReporter(process.env.ANECHO_API_KEY);
-const model = Model.fromFile("your-model.anecho");
+const model = Model.fromFile("anecho.ai_focus_model_16khz_v4_1.anecho");
 const proc = new Processor(model, await reporter.ensureLicense());
 reporter.attach(proc);
 reporter.start();
@@ -57,7 +57,7 @@ import os
 from anecho import Model, Processor, UsageReporter
 
 reporter = UsageReporter(os.environ["ANECHO_API_KEY"])
-model = Model.from_file("your-model.anecho")
+model = Model.from_file("anecho.ai_focus_model_16khz_v4_1.anecho")
 proc = Processor(model, reporter.ensure_license())
 reporter.attach(proc)
 reporter.start()
@@ -156,6 +156,16 @@ anecho inspect <model.anecho>
 ```
 
 Licence token via `--license TOKEN` or the `ANECHO_LICENSE` environment variable.
+
+## Voice agents — a working example
+
+The engine's natural seat is the input path of a voice agent: the model hears the
+room, the agent hears only the speaker. The block loop is the whole integration —
+feed the same `proc.process(block)` output to your agent's audio uplink instead of
+a file. A complete working instance (Gemini Live with the engine on its input,
+filter toggleable mid-conversation) runs at
+[anecho.ai/#agent](https://anecho.ai/#agent) — talk to it, flip the filter, and
+hear what the model takes away.
 
 ## Documentation
 

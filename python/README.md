@@ -66,6 +66,20 @@ for block in blocks:                 # np.float32 mono @ 16 kHz
     enhanced = proc.process(block)
 ```
 
+## Model versions
+
+Three containers are currently issued from the dashboard, one API:
+
+| version | status |
+|---|---|
+| `v4_1` | **default — what the live demo and agent run** |
+| `v7` | experimental: stronger on synthetic separation, softer on real-mic |
+| `v7_2` | latest candidate under evaluation |
+
+The SDK loads whichever file you pass to `Model.fromFile` / `Model.from_file`;
+the hosted API selects with `model=<alias>` (`/enhance` form field, `?model=` on
+the stream socket) and defaults to `v4_1`.
+
 ## Sample rates, explicitly
 
 - **The engine is natively 16 kHz** — that is what the model computes at.

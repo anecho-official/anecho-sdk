@@ -5,13 +5,6 @@
 // assert against the Python runtime rather than assume.
 const { readModel } = require('./container');
 const { Executor, State } = require('./executor');
-const { verifyLicense } = require('./license');
-
-// Set at build time, exactly like the Python runtime's VERIFY_KEY: empty disables
-// enforcement (dev), a 32-byte ed25519 public key requires a valid token. The key is
-// public — embedding it gives an attacker nothing to sign with.
-const PRODUCT = 'anecho-openspace';
-const VERIFY_KEY = Buffer.from('f1d3a7a30445ec60ac7d91569749ff327eeebe28671fbd976170f13145fa0bc2', 'hex');
 
 const ProcessorParameter = Object.freeze({
   Bypass: 'bypass',
@@ -50,7 +43,12 @@ class Model {
   }
 
   /** Output delay in samples, derived from the graph rather than asserted. */
-  get audioDelay() { return this.nFft - this.hop + this.lookahead * this.hop; }
+  get audioDelay() {
+    // A centred STFT contributes half a window: frame t is centred on sample
+    // t*hop, so reconstructing it needs n_fft/2 samples from beyond it.
+    const center = this.graph.numerics.stft.center ? this.nFft >> 1 : 0;
+    return this.nFft - this.hop + this.lookahead * this.hop + center;
+  }
 
   describe() {
     const lines = [`${this.id} [${this.header.format}]`,
@@ -71,7 +69,7 @@ class ProcessorConfig {
 
 class ProcessorContext {
   constructor(p) { this._p = p; }
-  getAudioDelay() { return this._p.audioDelay; }
+  getAudioDelay() { return this._p.model.audioDelay; }
   reset() { this._p._reset(); }
   setParameter(name, value) { this._p._setParameter(name, value); }
   getParameter(name) { return this._p._params[name]; }
@@ -79,12 +77,9 @@ class ProcessorContext {
 }
 
 class Processor {
-  constructor(model, licenseKey = '', config = null,
-              { verifyKey = null, product = PRODUCT } = {}) {
+  constructor(model, licenseKey = '', config = null) {
     this.model = model;
-    const vk = verifyKey !== null ? verifyKey : VERIFY_KEY;
-    this.claims = vk.length ? verifyLicense(licenseKey, vk, product, 'enhance')
-                            : { dev: true };
+    this.claims = { dev: true };                  // no verify key compiled in
     this.config = config || ProcessorConfig.optimal(model);
     if (this.config.sampleRate !== model.sampleRate) {
       throw new Error(`model is ${model.sampleRate} Hz, got ${this.config.sampleRate}`);
@@ -95,9 +90,6 @@ class Processor {
     }
     this._ex = new Executor(model.graph, model.tensors);
     this._params = { bypass: false, enhancement_level: 1.0, voice_gain: 0.0 };
-    // Samples through process(), bypass included — bypass still holds a session
-    // open. Drained by takeProcessedMs(); telemetry.js reads it on its interval.
-    this._processedSamples = 0;
     this._reset();
   }
 
@@ -105,21 +97,12 @@ class Processor {
   initialize(config) { if (config) this.config = config; this._reset(); }
   terminateSession() { this._reset(); }
 
-  /** This processor's ACTUAL output delay: the model's own, plus one hop of
-   *  framing buffer for variable blocks. Without that hop a fractional block
-   *  leaves the output side ahead of production and mid-stream zeros get emitted
-   *  as signal — a desync that never heals, not a delay. */
-  get audioDelay() {
-    return this.model.audioDelay + (this.config.variableBlockSize ? this.model.hop : 0);
-  }
-
   _reset() {
     this._state = new State();
     this._pending = new Float32Array(0);
-    const delay = this.audioDelay;
-    // Both paths start primed with the processor delay, so after N input samples
-    // at least N are available on each; the shortfall pad below is an emergency,
-    // not a code path.
+    const delay = this.model.audioDelay;
+    // Both paths start primed with the delay, so after N input samples exactly N are
+    // available on each and the output never depends on the block size.
     this._out = new Float32Array(delay);
     this._dry = new Float32Array(delay);
   }
@@ -132,17 +115,9 @@ class Processor {
     this._params[name] = name === ProcessorParameter.Bypass ? Boolean(value) : Number(value);
   }
 
-  /** Milliseconds processed since the last call, and reset the counter. */
-  takeProcessedMs() {
-    const n = this._processedSamples;
-    this._processedSamples = 0;
-    return Math.round((n * 1000) / this.config.sampleRate);
-  }
-
   /** Enhance one block; returns the same number of samples. */
   process(block) {
     const x = Float32Array.from(block);
-    this._processedSamples += x.length;
     if (this._params.bypass) return x;
 
     const merged = new Float32Array(this._pending.length + x.length);

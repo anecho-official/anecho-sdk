@@ -66,6 +66,18 @@ for block in blocks:                 # np.float32 mono @ 16 kHz
     enhanced = proc.process(block)
 ```
 
+## Sample rates, explicitly
+
+- **The engine is natively 16 kHz** — that is what the model computes at.
+- **The SDK expects 16 kHz in and returns 16 kHz out.** It does not resample;
+  feed it your rate and you get garbage, not an error. Resample at your edge
+  (soxr/libsamplerate class, stateful across blocks for streaming).
+- **The hosted API accepts and returns any rate** — 8 kHz telephony, 24, 44.1,
+  48 kHz — via a stateful polyphase resampler on both directions (`?sr=` on the
+  stream socket; file rate is read from the WAV header on /enhance).
+- The voice-agent path speaks Gemini Live's contract: 16 kHz uplink, 24 kHz
+  downlink.
+
 ## The streaming contract
 
 - Feed float32 mono at the model's rate (`model.sampleRate` / `model.sample_rate`,

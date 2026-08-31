@@ -96,6 +96,8 @@ class UsageReporter {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${this.apiKey}`,
+          // The edge bot-filters anonymous agents; identify as ourselves.
+          'User-Agent': `${SDK_NAME}/${SDK_VERSION}`,
         },
         body: JSON.stringify({ events, sdk: SDK_NAME, sdkVersion: SDK_VERSION }),
         signal: AbortSignal.timeout(this.timeoutMs),

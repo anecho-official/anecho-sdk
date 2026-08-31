@@ -194,7 +194,11 @@ function apiBase() {
 }
 
 async function apiGet(pathname, key) {
-  const res = await fetch(apiBase() + pathname, { headers: { authorization: `Bearer ${key}` } });
+  const res = await fetch(apiBase() + pathname, { headers: {
+    authorization: `Bearer ${key}`,
+    // The edge bot-filters anonymous agents; identify as ourselves.
+    'user-agent': `anecho-cli/${require('../package.json').version}`,
+  } });
   if (!res.ok) {
     let msg = '';
     try { msg = (await res.json()).error || ''; } catch { /* not JSON */ }

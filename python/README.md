@@ -27,6 +27,25 @@ pip install "git+https://github.com/anecho-official/anecho-sdk.git#subdirectory=
 You also need an **API key** and your **model file** (a per-customer `.anecho`)
 from [app.anecho.ai](https://app.anecho.ai).
 
+## Download your model
+
+Your API key is also your download key — the CLI fetches the model file and
+verifies its sha256 against the server's header:
+
+```bash
+export ANECHO_API_KEY=sk_...
+npx github:anecho-official/anecho-sdk fetch --list   # versions available to you
+npx github:anecho-official/anecho-sdk fetch          # the default (v4_1)
+npx github:anecho-official/anecho-sdk fetch v7_2     # a specific version
+```
+
+No Node handy? The same endpoint speaks plain HTTP:
+
+```bash
+curl -H "Authorization: Bearer $ANECHO_API_KEY" -O -J \
+  https://app.anecho.ai/api/v1/models/v4_1
+```
+
 ## Quick start
 
 Hear it before you write any code:

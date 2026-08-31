@@ -3,6 +3,7 @@
 // anecho CLI: process a file, or record from the Mac microphone and play both back.
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { execFileSync, spawnSync } = require('child_process');
 const os = require('os');
 const { Model, Processor, ProcessorParameter, align } = require('./processor');
@@ -13,21 +14,29 @@ const USAGE = `anecho — voice-focus runtime
   anecho process <model.anecho> <in.wav> <out.wav> [options]
   anecho mic     <model.anecho> [--seconds 15] [--device N] [--list] [--keep DIR]
   anecho inspect <model.anecho>
+  anecho fetch   [alias]       download your model file into the current directory
+  anecho fetch   --list        show every model version your key can download
 
 options
   --level 0.8     dry/wet, 0..1        --gain -6    dB on the enhanced path
   --license TOKEN or env ANECHO_LICENSE   licence token from your dashboard
+  --key KEY       or env ANECHO_API_KEY   API key, used by fetch
   --bypass        return the input     --no-play    mic: do not play back
+
+fetch talks to https://app.anecho.ai (env ANECHO_API_BASE overrides), saves the
+file under the server's name (anecho_<alias>.anecho) and verifies its sha256.
 `;
 
-const TAKES_VALUE = new Set(['--level', '--gain', '--seconds', '--device', '--keep', '--license']);
+const TAKES_VALUE = new Set(['--level', '--gain', '--seconds', '--device', '--keep', '--license', '--key']);
 
 /** Split flags from positionals, so `mic --list` is not read as a model path. */
 function parse(argv) {
   const f = { level: 1.0, gain: 0.0, bypass: false, seconds: 15, play: true,
               keep: null, device: null, list: false, args: [],
               // A licence travels either way; the env var keeps it out of shell history.
-              license: process.env.ANECHO_LICENSE || '' };
+              license: process.env.ANECHO_LICENSE || '',
+              // Same rule for the API key — used only by `fetch`.
+              key: process.env.ANECHO_API_KEY || '' };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (!a.startsWith('--')) { f.args.push(a); continue; }
@@ -38,6 +47,8 @@ function parse(argv) {
     else if (a === '--seconds') f.seconds = Number(v);
     else if (a === '--device') f.device = Number(v);
     else if (a === '--keep') f.keep = v;
+    else if (a === '--key') f.key = v;
+    else if (a === '--license') f.license = v;
     else if (a === '--bypass') f.bypass = true;
     else if (a === '--no-play') f.play = false;
     else if (a === '--list') f.list = true;
@@ -171,11 +182,68 @@ function cmdInspect(argv) {
   console.log(model.describe());
 }
 
+/* ── fetch: download a model file from the dashboard ─────────────────────────
+ * GET /api/v1/models        — what this key may download (--list)
+ * GET /api/v1/models/<alias> — the file itself; "default" is always valid.
+ * The server names the file (Content-Disposition, anecho_<alias>.anecho) and
+ * states its sha256 (X-Anecho-Sha256); we verify before trusting the bytes.
+ * Node >= 18 global fetch, no dependencies. */
+
+function apiBase() {
+  return (process.env.ANECHO_API_BASE || 'https://app.anecho.ai').replace(/\/+$/, '');
+}
+
+async function apiGet(pathname, key) {
+  const res = await fetch(apiBase() + pathname, { headers: { authorization: `Bearer ${key}` } });
+  if (!res.ok) {
+    let msg = '';
+    try { msg = (await res.json()).error || ''; } catch { /* not JSON */ }
+    throw new Error(`${msg || 'request failed'} (HTTP ${res.status}, ${apiBase()})`);
+  }
+  return res;
+}
+
+async function cmdFetch(argv) {
+  const f = parse(argv);
+  if (!f.key) {
+    console.error('no API key. Set ANECHO_API_KEY or pass --key <key> — keys live in your dashboard at https://app.anecho.ai');
+    process.exit(1);
+  }
+
+  if (f.list) {
+    const { models } = await (await apiGet('/api/v1/models', f.key)).json();
+    const rows = [['ALIAS', 'DEFAULT', 'BYTES', 'SHA256'],
+      ...models.map((m) => [m.alias, m.default ? 'yes' : '', String(m.bytes), m.sha256.slice(0, 12) + '…'])];
+    const w = rows[0].map((_, c) => Math.max(...rows.map((r) => r[c].length)));
+    for (const r of rows) console.log(r.map((cell, c) => cell.padEnd(w[c])).join('  ').trimEnd());
+    console.log('\nanecho fetch <alias> downloads one; plain `anecho fetch` takes the default.');
+    return;
+  }
+
+  const alias = f.args[0] || 'default';
+  const res = await apiGet(`/api/v1/models/${encodeURIComponent(alias)}`, f.key);
+  const cd = /filename="?([^";]+)"?/i.exec(res.headers.get('content-disposition') || '');
+  const name = path.basename(cd ? cd[1] : `anecho_${alias}.anecho`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  const sha = crypto.createHash('sha256').update(buf).digest('hex');
+  const dest = path.join(process.cwd(), name);
+  fs.writeFileSync(dest, buf);
+
+  const expected = (res.headers.get('x-anecho-sha256') || '').toLowerCase();
+  if (expected && expected !== sha) {
+    fs.unlinkSync(dest);
+    console.error(`sha256 mismatch — server said ${expected}, file hashed to ${sha}. ${name} deleted; try again.`);
+    process.exit(1);
+  }
+  console.log(`${name}  ${buf.length} bytes  sha256 ${sha}${expected ? '  (verified)' : ''}`);
+}
+
 const [cmd, ...rest] = process.argv.slice(2);
 try {
   if (cmd === 'process') cmdProcess(rest);
   else if (cmd === 'mic') cmdMic(rest);
   else if (cmd === 'inspect') cmdInspect(rest);
+  else if (cmd === 'fetch') cmdFetch(rest).catch((e) => { console.error(String(e.message || e)); process.exit(1); });
   else { console.log(USAGE); process.exit(cmd ? 1 : 0); }
 } catch (e) {
   console.error(String(e.message || e));

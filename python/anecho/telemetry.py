@@ -123,7 +123,11 @@ class UsageReporter:
         req = urllib.request.Request(
             self.endpoint, data=body, method="POST",
             headers={"Content-Type": "application/json",
-                     "Authorization": f"Bearer {self.api_key}"})
+                     "Authorization": f"Bearer {self.api_key}",
+                     # The edge blocks urllib's default Python-urllib/* agent as a
+                     # bot (403 before the request reaches the app). Identify as
+                     # ourselves — which is also just true.
+                     "User-Agent": f"{SDK_NAME}/{SDK_VERSION}"})
         try:
             with urllib.request.urlopen(req, timeout=self.timeout_s) as r:
                 reply = json.loads(r.read().decode())

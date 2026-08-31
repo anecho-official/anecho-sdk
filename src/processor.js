@@ -5,6 +5,13 @@
 // assert against the Python runtime rather than assume.
 const { readModel } = require('./container');
 const { Executor, State } = require('./executor');
+const { verifyLicense } = require('./license');
+
+// Set at build time, exactly like the Python runtime's VERIFY_KEY: empty disables
+// enforcement (dev), a 32-byte ed25519 public key requires a valid token. The key is
+// public — embedding it gives an attacker nothing to sign with.
+const PRODUCT = 'anecho-openspace';
+const VERIFY_KEY = Buffer.from('f1d3a7a30445ec60ac7d91569749ff327eeebe28671fbd976170f13145fa0bc2', 'hex');
 
 const ProcessorParameter = Object.freeze({
   Bypass: 'bypass',
@@ -77,8 +84,12 @@ class ProcessorContext {
 }
 
 class Processor {
-  constructor(model, licenseKey = '', config = null) {
+  constructor(model, licenseKey = '', config = null,
+              { verifyKey = null, product = PRODUCT } = {}) {
     this.model = model;
+    const vk = verifyKey !== null ? verifyKey : VERIFY_KEY;
+    this.claims = vk.length ? verifyLicense(licenseKey, vk, product, 'enhance')
+                            : { dev: true };
     this.claims = { dev: true };                  // no verify key compiled in
     this.config = config || ProcessorConfig.optimal(model);
     if (this.config.sampleRate !== model.sampleRate) {

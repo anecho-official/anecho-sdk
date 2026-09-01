@@ -111,6 +111,8 @@ class Processor {
   _reset() {
     this._state = new State();
     this._pending = new Float32Array(0);
+    // Metering counter — drained by telemetry.UsageReporter.
+    this._processedSamples = 0;
     const delay = this.model.audioDelay;
     // Both paths start primed with the delay, so after N input samples exactly N are
     // available on each and the output never depends on the block size.
@@ -127,8 +129,16 @@ class Processor {
   }
 
   /** Enhance one block; returns the same number of samples. */
+  /** Milliseconds processed since the last call, and reset the counter. */
+  takeProcessedMs() {
+    const n = this._processedSamples;
+    this._processedSamples = 0;
+    return Math.round((n * 1000) / this.config.sampleRate);
+  }
+
   process(block) {
     const x = Float32Array.from(block);
+    this._processedSamples += x.length;
     if (this._params.bypass) return x;
 
     const merged = new Float32Array(this._pending.length + x.length);

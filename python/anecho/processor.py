@@ -210,6 +210,8 @@ class Processor:
     def _reset(self) -> None:
         self._state = State()
         self._pending = np.zeros(0, dtype=np.float32)
+        # Metering counter — drained by telemetry.UsageReporter.take/attach.
+        self._processed_samples = 0
         # Both paths are primed with the declared delay, so after N input samples
         # exactly N are available on each and no ad-hoc zero padding is needed —
         # which is what makes the output block-size independent.
@@ -234,6 +236,7 @@ class Processor:
 
         _pin_torch_threads(torch)
         block = np.ascontiguousarray(audio, dtype=np.float32).reshape(-1)
+        self._processed_samples += len(block)
         if self._params[ProcessorParameter.Bypass]:
             return block.copy()
 
@@ -259,6 +262,11 @@ class Processor:
         gain = 10.0 ** (self._params[ProcessorParameter.VoiceGain] / 20.0)
         level = self._params[ProcessorParameter.EnhancementLevel]
         return (level * gain * wet + (1.0 - level) * dry).astype(np.float32)
+
+    def take_processed_ms(self) -> int:
+        """Milliseconds processed since the last call, and reset the counter."""
+        n, self._processed_samples = self._processed_samples, 0
+        return int(round(n * 1000.0 / self.config.sample_rate))
 
     def process_inspect(self, audio: np.ndarray, nodes=None) -> dict:
         """Like `process`, but also returns intermediate activations by node name."""

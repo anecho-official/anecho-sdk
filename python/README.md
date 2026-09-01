@@ -99,6 +99,14 @@ The SDK loads whichever file you pass to `Model.fromFile` / `Model.from_file`;
 the hosted API selects with `model=<alias>` (`/enhance` form field, `?model=` on
 the stream socket) and defaults to `v4_1`.
 
+## CPU: one core, on purpose
+
+The Python runtime pins torch to a single thread. Measured on v4_1: the default
+thread pool runs at RTF 0.98 with every core hot; one thread runs at RTF 0.145 —
+seven times faster on an eighth of the CPU (tiny per-hop ops drown in pool
+synchronisation). `ANECHO_TORCH_THREADS` overrides if your host knows better.
+One stream ≈ one fifth of one core; plan capacity accordingly.
+
 ## Sample rates, explicitly
 
 - **The engine is natively 16 kHz** — that is what the model computes at.

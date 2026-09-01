@@ -93,7 +93,8 @@ Three containers are currently issued from the dashboard, one API:
 |---|---|
 | `v4_1` | **default — what the live demo and agent run** |
 | `v7` | experimental: stronger on synthetic separation, softer on real-mic |
-| `v7_2` | latest candidate under evaluation |
+| `v7_2` | candidate under evaluation |
+| `v8_2` | newest candidate |
 
 The SDK loads whichever file you pass to `Model.fromFile` / `Model.from_file`;
 the hosted API selects with `model=<alias>` (`/enhance` form field, `?model=` on

@@ -170,6 +170,7 @@ const reporter = new UsageReporter(apiKey, {
 const token = await reporter.ensureLicense();  // cached when fresh, network when not
 reporter.attach(proc);
 reporter.start();               // unref'd timer; never keeps your process alive
+reporter.detach(proc);          // stream over: banks the tail milliseconds exactly
 await reporter.stop();          // final flush on shutdown
 ```
 

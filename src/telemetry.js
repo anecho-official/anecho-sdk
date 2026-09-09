@@ -30,6 +30,7 @@ class UsageReporter {
     this.statePath = stateDir ? path.join(stateDir, 'license.json') : null;
     this._procs = [];
     this._carry = [];               // events that failed to send, retried next flush
+    this._detachedMs = 0;
     this._timer = null;
     this._license = this._loadCached();
   }
@@ -65,12 +66,34 @@ class UsageReporter {
   }
 
   // ---------------------------------------------------------------- metering
-  /** Start counting this processor's output. Safe before or after start(). */
-  attach(processor) { this._procs.push(processor); }
+  /** Start counting this processor's output. Safe before or after start().
+   *  Held by WEAK reference: a forgotten processor is collected normally and at
+   *  most one flush interval of its audio goes unreported. For exact accounting
+   *  call detach() when the stream ends. */
+  attach(processor) { this._procs.push(new WeakRef(processor)); }
+
+  /** Stop counting and bank its remaining milliseconds for the next flush. */
+  detach(processor) {
+    this._procs = this._procs.filter((r) => { const p = r.deref(); return p && p !== processor; });
+    if (typeof processor.takeProcessedMs === 'function') this._detachedMs += processor.takeProcessedMs();
+  }
 
   _drain() {
     const events = [];
-    for (const p of this._procs) {
+    if (this._detachedMs > 0) {
+      events.push({
+        idempotencyKey: crypto.randomUUID().replace(/-/g, ''),
+        modelId: 'detached',
+        durationMs: this._detachedMs,
+        occurredAt: new Date().toISOString(),
+      });
+      this._detachedMs = 0;
+    }
+    const alive = [];
+    for (const ref of this._procs) {
+      const p = ref.deref();
+      if (!p) continue;
+      alive.push(ref);
       const ms = p.takeProcessedMs();
       if (ms > 0) {
         events.push({
@@ -81,6 +104,7 @@ class UsageReporter {
         });
       }
     }
+    this._procs = alive;
     const carry = this._carry;
     this._carry = [];
     return carry.concat(events);

@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import json
 import threading
+import weakref
 import time
 import urllib.request
 import uuid
@@ -55,7 +56,8 @@ class UsageReporter:
         self.timeout_s = float(timeout_s)
         self.state_path = (Path(state_dir).expanduser() / "license.json") if state_dir else None
         self._procs: list = []
-        self._carry: list[dict] = []      # events that failed to send, retried next flush
+        self._carry: list[dict] = []
+        self._detached_ms = 0      # events that failed to send, retried next flush
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
@@ -95,9 +97,23 @@ class UsageReporter:
 
     # ------------------------------------------------------------------ metering
     def attach(self, processor) -> None:
-        """Start counting this processor's output. Safe before or after start()."""
+        """Start counting this processor's output. Safe before or after start().
+
+        Held by WEAK reference: a processor the host forgot is collected normally
+        and stops being counted — at most one flush interval of its audio goes
+        unreported. For exact accounting call detach() when the stream ends.
+        """
         with self._lock:
-            self._procs.append(processor)
+            self._procs.append(weakref.ref(processor))
+
+    def detach(self, processor) -> None:
+        """Stop counting and bank its remaining milliseconds for the next flush."""
+        with self._lock:
+            self._procs = [r for r in self._procs if r() is not None and r() is not processor]
+            try:
+                self._detached_ms += processor.take_processed_ms()
+            except AttributeError:
+                pass
 
     def _drain(self) -> list[dict]:
         now = time.time()
@@ -105,7 +121,21 @@ class UsageReporter:
         with self._lock:
             procs, carry = list(self._procs), self._carry
             self._carry = []
-        for p in procs:
+        with self._lock:
+            banked, self._detached_ms = self._detached_ms, 0
+        if banked > 0:
+            events.append({
+                "idempotencyKey": uuid.uuid4().hex,
+                "modelId": "detached",
+                "durationMs": int(banked),
+                "occurredAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
+            })
+        alive = []
+        for ref in procs:
+            p = ref()
+            if p is None:
+                continue
+            alive.append(ref)
             ms = p.take_processed_ms()
             if ms > 0:
                 events.append({
@@ -114,6 +144,8 @@ class UsageReporter:
                     "durationMs": int(ms),
                     "occurredAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
                 })
+        with self._lock:
+            self._procs = alive
         return carry + events
 
     def flush(self) -> dict | None:

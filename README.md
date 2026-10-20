@@ -35,15 +35,14 @@ verifies its sha256 against the server's header:
 ```bash
 export ANECHO_API_KEY=sk_...
 npx github:anecho-official/anecho-sdk fetch --list   # versions available to you
-npx github:anecho-official/anecho-sdk fetch          # the default (v4_1)
-npx github:anecho-official/anecho-sdk fetch v7_2     # a specific version
+npx github:anecho-official/anecho-sdk fetch          # the current model (v8_2)
 ```
 
 No Node handy? The same endpoint speaks plain HTTP:
 
 ```bash
 curl -H "Authorization: Bearer $ANECHO_API_KEY" -O -J \
-  https://app.anecho.ai/api/v1/models/v4_1
+  https://app.anecho.ai/api/v1/models/v8_2
 ```
 
 ## Quick start
@@ -51,7 +50,7 @@ curl -H "Authorization: Bearer $ANECHO_API_KEY" -O -J \
 Hear it before you write any code:
 
 ```bash
-npx anecho mic anecho.ai_focus_model_16khz_v4_1.anecho --seconds 10   # record, process, play both back
+npx anecho mic anecho.ai_focus_model_16khz_v8_2.anecho --seconds 10   # record, process, play both back
 ```
 
 Node:
@@ -60,7 +59,7 @@ Node:
 const { Model, Processor, UsageReporter } = require("@anecho-official/sdk");
 
 const reporter = new UsageReporter(process.env.ANECHO_API_KEY);
-const model = Model.fromFile("anecho.ai_focus_model_16khz_v4_1.anecho");
+const model = Model.fromFile("anecho.ai_focus_model_16khz_v8_2.anecho");
 const proc = new Processor(model, await reporter.ensureLicense());
 reporter.attach(proc);
 reporter.start();
@@ -76,7 +75,7 @@ import os
 from anecho import Model, Processor, UsageReporter
 
 reporter = UsageReporter(os.environ["ANECHO_API_KEY"])
-model = Model.from_file("anecho.ai_focus_model_16khz_v4_1.anecho")
+model = Model.from_file("anecho.ai_focus_model_16khz_v8_2.anecho")
 proc = Processor(model, reporter.ensure_license())
 reporter.attach(proc)
 reporter.start()
@@ -85,26 +84,17 @@ for block in blocks:                 # np.float32 mono @ 16 kHz
     enhanced = proc.process(block)
 ```
 
-## Model versions
+## Model version
 
-Three containers are currently issued from the dashboard, one API:
-
-| version | status |
-|---|---|
-| `v4_1` | **default — what the live demo and agent run** |
-| `v7` | experimental: stronger on synthetic separation, softer on real-mic |
-| `v7_2` | candidate under evaluation |
-| `v8_2` | newest candidate |
-
-The SDK loads whichever file you pass to `Model.fromFile` / `Model.from_file`;
-the hosted API selects with `model=<alias>` (`/enhance` form field, `?model=` on
-the stream socket) and defaults to `v4_1`.
+One container is currently issued from the dashboard: `v8_2` — what the live demo,
+the agent and the [public benchmark](https://anecho.ai/benchmark) run. The SDK
+loads whichever file you pass to `Model.fromFile` / `Model.from_file`.
 
 ## CPU: one core, on purpose
 
-The Python runtime pins torch to a single thread. Measured on v4_1: the default
-thread pool runs at RTF 0.98 with every core hot; one thread runs at RTF 0.145 —
-seven times faster on an eighth of the CPU (tiny per-hop ops drown in pool
+The Python runtime pins torch to a single thread. Measured on v8_2 (10-core Mac,
+under load): the default thread pool runs at RTF ~0.43 with every core busy; one
+thread runs at RTF ~0.18 — over twice as fast on a tenth of the CPU (tiny per-hop ops drown in pool
 synchronisation). `ANECHO_TORCH_THREADS` overrides if your host knows better.
 One stream ≈ one fifth of one core; plan capacity accordingly.
 

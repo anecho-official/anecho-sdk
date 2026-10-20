@@ -38,7 +38,7 @@ GEMINI_MODEL = "gemini-live-2.5-flash-native-audio"
 IN_SR = 16_000   # Gemini Live's uplink contract: 16 kHz PCM16 mono, and ...
 OUT_SR = 24_000  # ... its downlink contract: 24 kHz PCM16 mono.
 FRAME_MS = 100   # uplink packet size; the granularity the Live API is built around
-DEFAULT_MODEL = "anecho.ai_focus_model_16khz_v4_1.anecho"
+DEFAULT_MODEL = "anecho.ai_focus_model_16khz_v8_2.anecho"
 
 
 def build_processor(model_path: str, bypass: bool) -> Processor:

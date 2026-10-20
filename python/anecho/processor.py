@@ -62,9 +62,9 @@ def _pin_torch_threads(torch) -> None:
 
     The graph runs ~50-100 tiny ops per 240-sample hop; torch's default intra-op
     pool fans each one across every core and the synchronisation dominates:
-    measured on the v4_1 release, default threads = RTF 0.98 with all cores hot,
-    one thread = RTF 0.145 on a single core — seven times faster on an eighth of
-    the CPU. A host that really wants the pool back sets ANECHO_TORCH_THREADS.
+    measured on the v8_2 release (10-core Mac, under load), default threads =
+    RTF ~0.43 with every core busy, one thread = RTF ~0.18 on a single core —
+    over twice as fast on a tenth of the CPU. A host that really wants the pool back sets ANECHO_TORCH_THREADS.
     """
     global _TORCH_PINNED
     if _TORCH_PINNED:

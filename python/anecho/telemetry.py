@@ -39,7 +39,7 @@ from pathlib import Path
 
 DEFAULT_ENDPOINT = "https://app.anecho.ai/api/v1/license/refresh"
 SDK_NAME = "anecho-python"
-SDK_VERSION = "1.0.0"
+SDK_VERSION = "1.0.1"
 
 
 class UsageReporter:

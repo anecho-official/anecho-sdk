@@ -1,6 +1,6 @@
 {
   "name": "@anecho-official/sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Anecho voice-focus runtime: load a .anecho model, stream audio through it on CPU. 16 kHz, 15 ms algorithmic delay.",
   "main": "src/index.js",
   "bin": {

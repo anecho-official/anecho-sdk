@@ -11,7 +11,7 @@ const { verifyLicense } = require('./license');
 // enforcement (dev), a 32-byte ed25519 public key requires a valid token. The key is
 // public — embedding it gives an attacker nothing to sign with.
 const PRODUCT = 'anecho-openspace';
-const VERIFY_KEY = Buffer.from('f1d3a7a30445ec60ac7d91569749ff327eeebe28671fbd976170f13145fa0bc2', 'hex');
+const VERIFY_KEY = Buffer.from('da09bd5c354b9602ca9c8b07ee537cad78e85839703a4fa0632b7aed4c3208ed', 'hex');
 
 const ProcessorParameter = Object.freeze({
   Bypass: 'bypass',

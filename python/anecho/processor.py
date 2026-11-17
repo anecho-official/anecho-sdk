@@ -43,7 +43,7 @@ from .license import verify_license
 # Replace VERIFY_KEY with your real public (ed25519) or secret (hmac) key at
 # build time. INTEGRITY_SECRET (optional) enables HMAC model-tamper checks.
 PRODUCT = "anecho-openspace"
-VERIFY_KEY = bytes.fromhex("da09bd5c354b9602ca9c8b07ee537cad78e85839703a4fa0632b7aed4c3208ed")            # set via keytool; empty disables license enforcement in dev
+VERIFY_KEY = bytes.fromhex("ab05f6c1aaabe66c7527c9a24b90c861450e6cfe95467e46adb0b36be4731b3f")            # set via keytool; empty disables license enforcement in dev
 INTEGRITY_SECRET = None     # set to bytes to require/verify the model HMAC
 
 
